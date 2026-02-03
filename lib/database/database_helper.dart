@@ -22,9 +22,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path, 
-      version: 2, // ← CAMBIO: versión 2
+      version: 3,
       onCreate: _onCreate,
-      onUpgrade: _onUpgrade, // ← NUEVO: migración
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -45,7 +45,8 @@ class DatabaseHelper {
           delivery_address TEXT,
           is_table INT NOT NULL, 
           total_paid REAL NOT NULL,
-          created_at TEXT NOT NULL
+          created_at TEXT NOT NULL,
+          notes TEXT
         )
       ''');
 
@@ -139,6 +140,10 @@ class DatabaseHelper {
 
       // Eliminar tabla temporal
       await db.execute('DROP TABLE orders_backup');
+    }
+    
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE orders ADD COLUMN notes TEXT');
     }
   }
 }

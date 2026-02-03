@@ -12,7 +12,8 @@ class AddOrderScreen extends StatefulWidget {
 
 class _AddOrderScreenState extends State<AddOrderScreen> {
   final _formkey = GlobalKey<FormState>();
-  final _customerNameController = TextEditingController(); // ← NUEVO: Controller para el nombre
+  final _customerNameController = TextEditingController();
+  final _notesController = TextEditingController();
 
   String _customerName = '';
   MenuItem? _selectedMenuItem;
@@ -29,7 +30,8 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
 
   @override
   void dispose() {
-    _customerNameController.dispose(); // ← NUEVO: Liberar recursos
+    _customerNameController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -206,6 +208,20 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                     onSaved: (value) => _deliveryAddress = value!.trim(),
                   ),
                 ],
+                const SizedBox(height: 16),
+
+                // Notas del pedido
+                TextFormField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Notas del pedido (opcional)',
+                    hintText: 'Ej: Sin sopa, ensalada aparte...',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.note_alt_outlined),
+                  ),
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
                 const SizedBox(height: 24),
 
                 // Buttons
@@ -484,6 +500,10 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
                 ))
             .toList();
 
+        final notes = _notesController.text.trim().isNotEmpty
+            ? _notesController.text.trim()
+            : null;
+
         await OrderService.addMultipleItemsOrder(
           customerName: _customerName,
           items: items,
@@ -491,9 +511,14 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           deliveryAddress: _isDelivery ? _deliveryAddress : null,
           isTable: _isTable,
           totalpaid: _totalPaid,
+          notes: notes,
         );
       } else {
         // Guardar pedido simple
+        final notes = _notesController.text.trim().isNotEmpty
+            ? _notesController.text.trim()
+            : null;
+
         await OrderService.addOrder(
           customerName: _customerName,
           menuItem: _selectedMenuItem!,
@@ -502,6 +527,7 @@ class _AddOrderScreenState extends State<AddOrderScreen> {
           deliveryAddress: _isDelivery ? _deliveryAddress : null,
           isTable: _isTable,
           totalpaid: _totalPaid,
+          notes: notes,
         );
       }
 

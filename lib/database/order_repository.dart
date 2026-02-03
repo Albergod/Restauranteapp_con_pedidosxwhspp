@@ -46,6 +46,7 @@ class OrderRepository {
             isTable: orderDB.isTable,
             totalPaid: orderDB.totalPaid,
             createdAt: orderDB.createdAt,
+            notes: orderDB.notes,
           ),
         );
       }
@@ -71,6 +72,7 @@ class OrderRepository {
         isTable: order.isTable,
         totalPaid: order.totalPaid,
         createdAt: order.createdAt,
+        notes: order.notes,
       );
 
       await txn.insert(
@@ -112,6 +114,7 @@ class OrderRepository {
         isTable: order.isTable,
         totalPaid: order.totalPaid,
         createdAt: order.createdAt,
+        notes: order.notes,
       );
 
       await txn.update(

@@ -48,6 +48,7 @@ class Order {
   final bool isTable;
   final double totalPaid;
   final DateTime createdAt;
+  final String? notes;
 
   Order({
     required this.id,
@@ -58,6 +59,7 @@ class Order {
     required this.isTable,
     required this.totalPaid,
     required this.createdAt,
+    this.notes,
   });
 
   // Calcula el precio total sumando todos los items

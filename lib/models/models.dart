@@ -67,6 +67,7 @@ class OrderDB {
   final bool isTable;
   final double totalPaid;
   final DateTime createdAt;
+  final String? notes;
 
   OrderDB({
     required this.id,
@@ -76,6 +77,7 @@ class OrderDB {
     required this.isTable,
     required this.totalPaid,
     required this.createdAt,
+    this.notes,
   });
 
   Map<String, dynamic> toMap() {
@@ -87,6 +89,7 @@ class OrderDB {
       'is_table': isTable ? 1 : 0,
       'total_paid': totalPaid,
       'created_at': createdAt.toIso8601String(),
+      'notes': notes,
     };
   }
 
@@ -99,6 +102,7 @@ class OrderDB {
       isTable: map['is_table'] == 1,
       totalPaid: map['total_paid'].toDouble(),
       createdAt: DateTime.parse(map['created_at']),
+      notes: map['notes'],
     );
   }
 }

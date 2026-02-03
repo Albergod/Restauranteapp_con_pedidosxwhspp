@@ -17,6 +17,7 @@ class OrderService {
     String? deliveryAddress,
     required bool isTable,
     required double totalpaid,
+    String? notes,
   }) async {
     final order = Order(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -29,6 +30,7 @@ class OrderService {
       isTable: isTable,
       totalPaid: totalpaid,
       createdAt: DateTime.now(),
+      notes: notes,
     );
     await OrderRepository().insertOrder(order);
   }
@@ -41,6 +43,7 @@ class OrderService {
     String? deliveryAddress,
     required bool isTable,
     required double totalpaid,
+    String? notes,
   }) async {
     final order = Order(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -51,6 +54,7 @@ class OrderService {
       isTable: isTable,
       totalPaid: totalpaid,
       createdAt: DateTime.now(),
+      notes: notes,
     );
     await OrderRepository().insertOrder(order);
   }

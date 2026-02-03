@@ -170,6 +170,34 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 );
               }).toList(),
 
+              if (_order.notes != null && _order.notes!.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                _buildSectionTitle('Notas del Pedido'),
+                Card(
+                  elevation: 1,
+                  color: Colors.amber.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.note_alt, color: Colors.orange, size: 28),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            _order.notes!,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 24),
 
               _buildSectionTitle('Tipo de Servicio'),
@@ -408,6 +436,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           isTable: _order.isTable,
           totalPaid: newAmount,
           createdAt: _order.createdAt,
+          notes: _order.notes,
         );
         _isLoading = false;
         _hasChanges = true;
