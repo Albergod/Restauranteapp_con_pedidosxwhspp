@@ -1,46 +1,58 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order.dart';
-import '../models/models.dart';
-import 'database_helper.dart';
-import 'package:sqflite/sqflite.dart';
 
 class MenuRepository {
   static final MenuRepository _instance = MenuRepository._internal();
   factory MenuRepository() => _instance;
   MenuRepository._internal();
 
+  SupabaseClient get _client => Supabase.instance.client;
+
   Future<List<MenuItem>> getAllMenuItems() async {
-    final db = await DatabaseHelper().database;
-    final List<Map<String, dynamic>> maps = await db.query('menu_items');
-    return maps.map((map) => MenuItemDB.fromMap(map).toMenuItem()).toList();
+    final response = await _client
+        .from('menu_items')
+        .select()
+        .order('name');
+    
+    return (response as List).map((map) => MenuItem(
+      id: map['id'],
+      name: map['name'],
+      price: (map['price'] as num).toDouble(),
+    )).toList();
+  }
+
+  Future<MenuItem?> getMenuItemById(String id) async {
+    final response = await _client
+        .from('menu_items')
+        .select()
+        .eq('id', id)
+        .maybeSingle();
+    
+    if (response == null) return null;
+    
+    return MenuItem(
+      id: response['id'],
+      name: response['name'],
+      price: (response['price'] as num).toDouble(),
+    );
   }
 
   Future<void> insertMenuItem(MenuItem item) async {
-    final db = await DatabaseHelper().database;
-    final itemDB = MenuItemDB(id: item.id, name: item.name, price: item.price);
-    await db.insert(
-      'menu_items',
-      itemDB.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await _client.from('menu_items').upsert({
+      'id': item.id,
+      'name': item.name,
+      'price': item.price,
+    });
   }
 
   Future<void> updateMenuItem(MenuItem item) async {
-    final db = await DatabaseHelper().database;
-    final itemDB = MenuItemDB(id: item.id, name: item.name, price: item.price);
-    await db.update(
-      'menu_items',
-      itemDB.toMap(),
-      where: 'id = ?',
-      whereArgs: [item.id],
-    );
+    await _client.from('menu_items').update({
+      'name': item.name,
+      'price': item.price,
+    }).eq('id', item.id);
   }
 
   Future<void> deleteMenuItem(String id) async {
-    final db = await DatabaseHelper().database;
-    await db.delete(
-      'menu_items',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await _client.from('menu_items').delete().eq('id', id);
   }
 }

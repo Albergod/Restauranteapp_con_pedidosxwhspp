@@ -1,178 +1,120 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order.dart';
-import '../service/menu_service.dart';
-import 'database_helper.dart';
-import '../models/models.dart';
-import 'package:sqflite/sqflite.dart';
+import 'menu_repository.dart';
 
 class OrderRepository {
   static final OrderRepository _instance = OrderRepository._internal();
   factory OrderRepository() => _instance;
   OrderRepository._internal();
 
-  // Obtener todos los pedidos
+  SupabaseClient get _client => Supabase.instance.client;
+
   Future<List<Order>> getAllOrders() async {
-    final db = await DatabaseHelper().database;
-    final List<Map<String, dynamic>> orderMaps = await db.query('orders');
+    final response = await _client
+        .from('orders')
+        .select()
+        .order('created_at', ascending: false);
 
     final orders = <Order>[];
-    for (final orderMap in orderMaps) {
-      final orderDB = OrderDB.fromMap(orderMap);
-
-      // Obtener los items de este pedido
-      final itemMaps = await db.query(
-        'order_items',
-        where: 'order_id = ?',
-        whereArgs: [orderDB.id],
-      );
+    
+    for (final orderMap in response as List) {
+      final itemsResponse = await _client
+          .from('order_items')
+          .select()
+          .eq('order_id', orderMap['id']);
 
       final items = <OrderItem>[];
-      for (final itemMap in itemMaps) {
-        final itemDB = OrderItemDB.fromMap(itemMap);
-        final menuItem = await MenuService.getMenuItemById(itemDB.menuItemId);
-
+      for (final itemMap in itemsResponse as List) {
+        final menuItem = await MenuRepository().getMenuItemById(itemMap['menu_item_id']);
         if (menuItem != null) {
-          items.add(OrderItem(menuItem: menuItem, quantity: itemDB.quantity));
+          items.add(OrderItem(
+            menuItem: menuItem,
+            quantity: itemMap['quantity'],
+          ));
         }
       }
 
       if (items.isNotEmpty) {
-        orders.add(
-          Order(
-            id: orderDB.id,
-            customerName: orderDB.customerName,
-            items: items,
-            isDelivery: orderDB.isDelivery,
-            deliveryAddress: orderDB.deliveryAddress,
-            isTable: orderDB.isTable,
-            totalPaid: orderDB.totalPaid,
-            createdAt: orderDB.createdAt,
-            notes: orderDB.notes,
-          ),
-        );
+        orders.add(Order(
+          id: orderMap['id'],
+          customerName: orderMap['customer_name'],
+          items: items,
+          isDelivery: orderMap['is_delivery'] == 1,
+          deliveryAddress: orderMap['delivery_address'],
+          isTable: orderMap['is_table'] == 1,
+          totalPaid: (orderMap['total_paid'] as num).toDouble(),
+          createdAt: DateTime.parse(orderMap['created_at']),
+          notes: orderMap['notes'],
+        ));
       }
     }
 
-    // Ordenar por fecha de creación
-    orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return orders;
   }
 
-  // Guardar un pedido con múltiples items
   Future<void> insertOrder(Order order) async {
-    final db = await DatabaseHelper().database;
-
-    // Iniciar transacción para garantizar consistencia
-    await db.transaction((txn) async {
-      // Insertar el pedido
-      final orderDB = OrderDB(
-        id: order.id,
-        customerName: order.customerName,
-        isDelivery: order.isDelivery,
-        deliveryAddress: order.deliveryAddress,
-        isTable: order.isTable,
-        totalPaid: order.totalPaid,
-        createdAt: order.createdAt,
-        notes: order.notes,
-      );
-
-      await txn.insert(
-        'orders',
-        orderDB.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-
-      // Insertar cada item del pedido
-      for (int i = 0; i < order.items.length; i++) {
-        final item = order.items[i];
-        final itemDB = OrderItemDB(
-          id: '${order.id}_item_$i',
-          orderId: order.id,
-          menuItemId: item.menuItem.id,
-          quantity: item.quantity,
-        );
-
-        await txn.insert(
-          'order_items',
-          itemDB.toMap(),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-      }
+    await _client.from('orders').insert({
+      'id': order.id,
+      'customer_name': order.customerName,
+      'is_delivery': order.isDelivery ? 1 : 0,
+      'delivery_address': order.deliveryAddress,
+      'is_table': order.isTable ? 1 : 0,
+      'total_paid': order.totalPaid,
+      'created_at': order.createdAt.toIso8601String(),
+      'notes': order.notes,
     });
+
+    for (int i = 0; i < order.items.length; i++) {
+      final item = order.items[i];
+      await _client.from('order_items').insert({
+        'id': '${order.id}_item_$i',
+        'order_id': order.id,
+        'menu_item_id': item.menuItem.id,
+        'quantity': item.quantity,
+      });
+    }
   }
 
-  // Actualizar un pedido
   Future<void> updateOrder(Order order) async {
-    final db = await DatabaseHelper().database;
+    await _client.from('orders').update({
+      'customer_name': order.customerName,
+      'is_delivery': order.isDelivery ? 1 : 0,
+      'delivery_address': order.deliveryAddress,
+      'is_table': order.isTable ? 1 : 0,
+      'total_paid': order.totalPaid,
+      'notes': order.notes,
+    }).eq('id', order.id);
 
-    await db.transaction((txn) async {
-      // Actualizar pedido
-      final orderDB = OrderDB(
-        id: order.id,
-        customerName: order.customerName,
-        isDelivery: order.isDelivery,
-        deliveryAddress: order.deliveryAddress,
-        isTable: order.isTable,
-        totalPaid: order.totalPaid,
-        createdAt: order.createdAt,
-        notes: order.notes,
-      );
+    await _client.from('order_items').delete().eq('order_id', order.id);
 
-      await txn.update(
-        'orders',
-        orderDB.toMap(),
-        where: 'id = ?',
-        whereArgs: [order.id],
-      );
-
-      // Eliminar items antiguos
-      await txn.delete(
-        'order_items',
-        where: 'order_id = ?',
-        whereArgs: [order.id],
-      );
-
-      // Insertar items actualizados
-      for (int i = 0; i < order.items.length; i++) {
-        final item = order.items[i];
-        final itemDB = OrderItemDB(
-          id: '${order.id}_item_$i',
-          orderId: order.id,
-          menuItemId: item.menuItem.id,
-          quantity: item.quantity,
-        );
-
-        await txn.insert(
-          'order_items',
-          itemDB.toMap(),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-      }
-    });
+    for (int i = 0; i < order.items.length; i++) {
+      final item = order.items[i];
+      await _client.from('order_items').insert({
+        'id': '${order.id}_item_$i',
+        'order_id': order.id,
+        'menu_item_id': item.menuItem.id,
+        'quantity': item.quantity,
+      });
+    }
   }
 
-  // Eliminar un pedido (CASCADE eliminará los items automáticamente)
   Future<void> deleteOrder(String id) async {
-    final db = await DatabaseHelper().database;
-    await db.delete('orders', where: 'id = ?', whereArgs: [id]);
+    await _client.from('order_items').delete().eq('order_id', id);
+    await _client.from('orders').delete().eq('id', id);
   }
 
-  // Obtener ingresos totales
   Future<double> getTotalRevenue() async {
-    final db = await DatabaseHelper().database;
-    final result = await db.rawQuery(
-      'SELECT SUM(total_paid) as total FROM orders',
-    );
-    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
+    final response = await _client.from('orders').select('total_paid');
+    double total = 0;
+    for (final row in response as List) {
+      total += (row['total_paid'] as num).toDouble();
+    }
+    return total;
   }
 
-  // Actualizar el pago de una orden
   Future<void> updateOrderPayment(String orderId, double newAmount) async {
-    final db = await DatabaseHelper().database;
-    await db.update(
-      'orders',
-      {'total_paid': newAmount},
-      where: 'id = ?',
-      whereArgs: [orderId],
-    );
+    await _client.from('orders').update({
+      'total_paid': newAmount,
+    }).eq('id', orderId);
   }
 }
