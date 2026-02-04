@@ -54,7 +54,7 @@ client.on('message', async (message) => {
 
   const phoneNumber = message.from;
   const messageText = message.body;
-  
+
   const contact = await message.getContact();
   const senderName = contact.pushname || contact.name || 'Cliente';
 
